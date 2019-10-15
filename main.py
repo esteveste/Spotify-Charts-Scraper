@@ -9,6 +9,10 @@ import random
 from tqdm import tqdm
 # import click
 
+from joblib import Parallel, delayed
+
+
+
 
 def get_download_url(top_type='regional',
                      country='global',
@@ -122,7 +126,7 @@ def get_url_time_period(date_period):
 
 
 def save_csv(df):
-    with open('output.csv', 'a') as f:
+    with open('output.csv', 'w') as f:
         df.to_csv(f, index=False)
 
 
@@ -133,14 +137,13 @@ def main():
 
     time_periods = generate_time_periods()
 
-    countries = generate_countries_list('global')
+    countries = generate_countries_list('all')
 
-    dfs_list = []
-    for country in tqdm(countries, desc='Country'):
-        for time_period in tqdm(time_periods, desc='Time Period'):
-            download_url = get_download_url(top_type, country,
-                                            time_period_type, time_period)
-            dfs_list.append(get_df(download_url,country,time_period))
+    dfs_list=Parallel(n_jobs=-1)(
+        delayed(get_df)(get_download_url(top_type, country, time_period_type,
+                                         time_period), country, time_period)
+        for country in tqdm(countries, desc='Country')
+        for time_period in tqdm(time_periods, desc='Time Period'))
 
     final_df = pd.concat(dfs_list, ignore_index=True)
 
